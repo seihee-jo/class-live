@@ -2,7 +2,7 @@
 // kind: screen(안내 화면) · choice(선택) · scale(1~5) · short(단어) · text(자유 답변)
 window.SURVEY = {
   title: '한동대 직무 특강',
-  version: '4',   // 질문을 바꾸거나 본 강의 직전에 올리면 학생 폰의 "제출 완료" 기록이 초기화된다
+  version: '5',   // 질문을 바꾸거나 본 강의 직전에 올리면 학생 폰의 "제출 완료" 기록이 초기화된다
   steps: [
     { id: 'wait', kind: 'screen', label: '시작 전',
       title: 'QR로 접속해 주세요', sub: '모든 답변은 익명이에요. 질문이 열리면 이 화면이 바로 바뀌어요.' },
@@ -12,6 +12,9 @@ window.SURVEY = {
     // id는 새로 붙인다(q2 등 기존 id를 재사용하면 리허설 답변과 섞인다)
     { id: 'career', kind: 'scale', label: '진로 확신도',
       title: '졸업 이후 직무를 얼마나 확실히 정했나요?', min: '아직 전혀 모르겠어요', max: '확실히 정했어요' },
+    { id: 'likeorgood', kind: 'choice', label: '좋아하는 일 vs 잘하는 일',
+      title: '좋아하는 일을 하고 싶나요? 잘하는 일을 하고 싶나요?',
+      options: ['좋아하는 일', '잘하는 일', '모르겠어요', '둘 다'] },
     { id: 'q2', kind: 'scale', label: 'SaaS 영업 이해도',
       title: 'IT SaaS 영업, 얼마나 알고 있나요?', min: '처음 들어요', max: '설명할 수 있어요' },
     { id: 'q3', kind: 'short', label: '영업의 이미지',
