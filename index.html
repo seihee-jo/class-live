@@ -18,6 +18,7 @@ h1{margin-top:8px;font-size:23px;line-height:1.32;font-weight:600;letter-spacing
 .opts{margin-top:20px;display:grid;gap:9px}
 .opt{text-align:left;padding:15px 16px;border:1.5px solid var(--line);border-radius:10px;font-size:16px;font-weight:500;color:var(--navy);background:var(--paper);transition:border-color .15s,background .15s}
 .opt[aria-pressed=true]{border-color:var(--em);background:var(--wash)}
+.card > .sub + .opts, .card > .sub + textarea{margin-top:16px}
 .scale{margin-top:22px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .scale .opt{text-align:center;padding:16px 0;font-size:18px}
 .scale-l{display:flex;justify-content:space-between;margin-top:9px;font-size:13px;color:var(--muted)}
@@ -58,7 +59,8 @@ textarea:focus{border-color:var(--em)}
   var cur = null, sending = false;
 
   function store(k, v){ try{ if(v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); }catch(e){ return null; } }
-  function doneKey(q){ return 'live-done-' + q; }
+  // 질문을 바꾸면 SURVEY.version을 올린다. 리허설 때 낸 기록이 본 강의에서 "제출 완료"로 남지 않게.
+  function doneKey(q){ return 'live-done-' + (window.SURVEY.version || '1') + '-' + q; }
   function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
 
   var sb = window.supabase.createClient(window.LIVE_CONFIG.url, window.LIVE_CONFIG.anonKey);
@@ -85,12 +87,29 @@ textarea:focus{border-color:var(--em)}
     var n = QS.indexOf(s) + 1;
     card.appendChild(el('p', 'eyebrow', 'Q' + n + ' / ' + QS.length));
     card.appendChild(el('h1', null, s.title));
+    if(s.hint) card.appendChild(el('p', 'sub', s.hint));
     if(store(doneKey(q)) && s.kind !== 'text') return renderDone(card, s);
 
     var value = null, send = el('button', 'send', '제출하기'), err = el('p', 'err');
     send.disabled = true;
 
-    if(s.kind === 'choice' || s.kind === 'scale'){
+    if(s.kind === 'multi'){
+      // 고른 보기를 보기 순서대로 줄바꿈으로 이어 한 줄로 저장한다 (응답 1건 = 1명)
+      var mbox = el('div', 'opts'), picked = {};
+      s.options.forEach(function(o){
+        var b = el('button', 'opt', o); b.type = 'button'; b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', function(){
+          picked[o] = !picked[o];
+          b.setAttribute('aria-pressed', picked[o] ? 'true' : 'false');
+          var sel = s.options.filter(function(x){ return picked[x]; });
+          value = sel.length ? sel.join('\n') : null;
+          send.disabled = !value;
+          send.textContent = sel.length ? sel.length + '개 제출하기' : '제출하기';
+        });
+        mbox.appendChild(b);
+      });
+      card.appendChild(mbox);
+    } else if(s.kind === 'choice' || s.kind === 'scale'){
       var box = el('div', s.kind === 'scale' ? 'scale' : 'opts');
       var items = s.kind === 'scale' ? ['1','2','3','4','5'] : s.options;
       items.forEach(function(o){
@@ -132,6 +151,7 @@ textarea:focus{border-color:var(--em)}
         card.innerHTML = '';
         card.appendChild(el('p', 'eyebrow', 'Q' + n + ' / ' + QS.length));
         card.appendChild(el('h1', null, s.title));
+        if(s.hint) card.appendChild(el('p', 'sub', s.hint));
         renderDone(card, s);
       });
     });

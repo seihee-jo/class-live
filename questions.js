@@ -2,6 +2,7 @@
 // kind: screen(안내 화면) · choice(선택) · scale(1~5) · short(단어) · text(자유 답변)
 window.SURVEY = {
   title: '한동대 직무 특강',
+  version: '2',   // 질문을 바꾸거나 본 강의 직전에 올리면 학생 폰의 "제출 완료" 기록이 초기화된다
   steps: [
     { id: 'wait', kind: 'screen', label: '시작 전',
       title: 'QR로 접속해 주세요', sub: '모든 답변은 익명이에요. 질문이 열리면 이 화면이 바로 바뀌어요.' },
@@ -10,13 +11,23 @@ window.SURVEY = {
       options: ['1~2학기', '3~4학기', '5~6학기', '7~8학기', '8학기 초과 · 졸업'] },
     { id: 'q2', kind: 'scale', label: 'SaaS 영업 이해도',
       title: 'IT SaaS 영업, 얼마나 알고 있나요?', min: '처음 들어요', max: '설명할 수 있어요' },
-    { id: 'q3', kind: 'short', label: '떠오르는 단어',
-      title: '"영업" 하면 떠오르는 단어 하나', placeholder: '단어 하나', max: 20 },
+    { id: 'q3', kind: 'short', label: '영업의 이미지',
+      title: '"영업" 하면 어떤 이미지가 떠오르나요?',
+      hint: '예) 술 영업, 정장 입은 사람들, 말 잘하는 사람들',
+      placeholder: '떠오르는 이미지를 짧게', max: 30 },
     { id: 'q4', kind: 'choice', label: '진로 고려',
-      title: '영업직을 진로로 생각해 본 적 있나요?',
+      title: '영업 관련 직무를 진로로 생각해 본 적 있나요?',
       options: ['있어요', '고민 중이에요', '아직 없어요'] },
-    { id: 'q5', kind: 'text', label: '기대',
-      title: '오늘 가장 기대하는 것', placeholder: '편하게 적어 주세요', max: 200 },
+    // multi: 여러 개 선택. 장표 Part 1~4 순서와 맞춘 보기라, 결과를 보고 어느 Part를 깊게 말할지 정한다.
+    { id: 'q5', kind: 'multi', label: '기대',
+      title: '오늘 가장 기대하는 것은? (여러 개 선택)',
+      options: [
+        '영업 직무로 커리어를 시작하게 된 계기',
+        '현재 B2B SaaS IT 영업 시장 상황',
+        '실제 영업이 진행되는 과정 (고객 발굴부터 계약까지)',
+        '영업 관련 직무 종류와 하루 일과',
+        '영업 직무에 필요한 역량과 자격',
+      ] },
     { id: 'q6', kind: 'text', label: '궁금한 것',
       title: '평소 가장 궁금했던 것', placeholder: '영업, SaaS, 진로, 회사 생활 무엇이든', max: 200 },
     { id: 'pause', kind: 'screen', label: '세션 진행 중',

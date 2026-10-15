@@ -24,6 +24,7 @@ html,body{height:100%;overflow:hidden}
 .main{position:relative;padding:5cqh 4cqw 9cqh;display:flex;flex-direction:column;min-width:0;min-height:0}
 .eyebrow{font-size:max(1.15cqw,12px);font-weight:650;letter-spacing:.08em;color:var(--accent)}
 h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;letter-spacing:-.04em;color:var(--navy)}
+.hint{margin-top:1.2cqh;font-size:max(1.5cqw,14px);color:var(--muted)}
 .res{margin-top:4cqh;flex:1;min-height:0;overflow:auto;scrollbar-width:thin}
 /* 막대 */
 .bars{display:grid;gap:2.2cqh}
@@ -33,6 +34,10 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
 .bar .f{height:100%;width:0;background:var(--container);transition:width .6s var(--ease)}
 .bar.top .f{background:var(--em)}
 .bar .n{font-size:max(1.6cqw,14px);font-weight:600;color:var(--navy);text-align:right;font-variant-numeric:tabular-nums}
+.bars--multi{gap:2.6cqh}
+.bars--multi .bar{grid-template-columns:31cqw 1fr 9cqw}
+.bars--multi .bar .l{line-height:1.35}
+.bar .n small{margin-left:.6cqw;font-size:.75em;font-weight:500;color:var(--muted)}
 .avg{margin-top:3cqh;font-size:max(1.4cqw,14px);color:var(--muted)}
 .avg b{color:var(--navy);font-weight:600}
 /* 단어 */
@@ -130,7 +135,8 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
 
   function renderHead(s){
     var n = QS.indexOf(s) + 1;
-    return '<p class="eyebrow">Q' + n + ' / ' + QS.length + ' · ' + esc(s.label) + '</p><h1>' + esc(s.title) + '</h1>';
+    return '<p class="eyebrow">Q' + n + ' / ' + QS.length + ' · ' + esc(s.label) + '</p><h1>' + esc(s.title) + '</h1>' +
+           (s.hint ? '<p class="hint">' + esc(s.hint) + '</p>' : '');
   }
 
   function renderView(){
@@ -156,6 +162,19 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
       });
       body += '</div>';
       if(s.kind === 'scale') body += '<p class="avg">평균 <b>' + (sum / answers.length).toFixed(1) + '</b> / 5</p>';
+    } else if(s.kind === 'multi'){
+      // 응답 1건 = 1명, 본문은 고른 보기를 줄바꿈으로 이은 것
+      var mc = {}, mmax = 0, total = answers.length;
+      s.options.forEach(function(o){ mc[o] = 0; });
+      answers.forEach(function(a){ a.body.split('\n').forEach(function(o){ if(o in mc) mc[o]++; }); });
+      s.options.forEach(function(o){ mmax = Math.max(mmax, mc[o]); });
+      body = '<div class="bars bars--multi">';
+      s.options.forEach(function(o, k){
+        body += '<div class="bar' + (mc[o] && mc[o] === mmax ? ' top' : '') + '"><span class="l">' + (k + 1) + '. ' + esc(o) + '</span>' +
+                '<span class="t"><span class="f" data-w="' + (total ? mc[o] / total * 100 : 0) + '"></span></span>' +
+                '<span class="n">' + mc[o] + '<small>' + Math.round(total ? mc[o] / total * 100 : 0) + '%</small></span></div>';
+      });
+      body += '</div><p class="avg"><b>' + total + '명</b> 응답 · 막대는 응답자 중 고른 비율</p>';
     } else if(s.kind === 'short'){
       var w = {}, order = [];
       answers.forEach(function(a){ var k = a.body.trim(); if(!(k in w)){ w[k] = 0; order.push(k); } w[k]++; });
