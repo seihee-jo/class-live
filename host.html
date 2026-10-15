@@ -24,14 +24,17 @@ html,body{height:100%;overflow:hidden}
 .main{position:relative;padding:5cqh 4cqw 9cqh;display:flex;flex-direction:column;min-width:0;min-height:0}
 .eyebrow{font-size:max(1.15cqw,12px);font-weight:650;letter-spacing:.08em;color:var(--accent)}
 h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;letter-spacing:-.04em;color:var(--navy)}
-.hint{margin-top:1.2cqh;font-size:max(1.5cqw,14px);color:var(--muted)}
+.hint{margin-top:1.2cqh;font-size:max(1.5cqw,14px);color:var(--muted);white-space:pre-line;line-height:1.5}
+.coffee{display:flex;align-items:baseline;gap:1.2cqw;color:var(--navy)}
+.coffee b{font-size:max(9cqw,60px);font-weight:350;line-height:1;font-variant-numeric:tabular-nums}
+.coffee span{font-size:max(2cqw,18px);font-weight:500}
 .res{margin-top:4cqh;flex:1;min-height:0;overflow:auto;scrollbar-width:thin}
 /* 막대 */
 .bars{display:grid;gap:2.2cqh}
 .bar{display:grid;grid-template-columns:17cqw 1fr 5cqw;align-items:center;gap:1.4cqw}
 .bar .l{font-size:max(1.5cqw,14px);font-weight:500;color:var(--text-2)}
 .bar .t{height:max(3.4cqh,16px);background:var(--subtle);border-radius:.3cqw;overflow:hidden}
-.bar .f{height:100%;width:0;background:var(--container);transition:width .6s var(--ease)}
+.bar .f{display:block;height:100%;width:0;background:var(--container);transition:width .6s var(--ease)}
 .bar.top .f{background:var(--em)}
 .bar .n{font-size:max(1.6cqw,14px);font-weight:600;color:var(--navy);text-align:right;font-variant-numeric:tabular-nums}
 .bars--multi{gap:2.6cqh}
@@ -143,7 +146,14 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
     var s = step();
     document.getElementById('sAns').textContent = s.kind === 'screen' ? '-' : answers.length;
     if(s.kind === 'screen'){
-      view.innerHTML = '<div class="screen"><p class="eyebrow">' + esc(s.label) + '</p><h1>' + esc(s.title) + '</h1><p>' + esc(s.sub) + '</p></div>';
+      view.innerHTML = '<div class="screen">' + (s.label ? '<p class="eyebrow">' + esc(s.label) + '</p>' : '') +
+        '<h1>' + esc(s.title) + '</h1>' + (s.sub ? '<p>' + esc(s.sub) + '</p>' : '') + '</div>';
+      return;
+    }
+    if(s.kind === 'coffee'){
+      // 연락처가 들어간 신청서는 발표 화면에 절대 띄우지 않는다. 개수만.
+      view.innerHTML = renderHead(s) + '<div class="res"><div class="coffee"><b>' + coffeeCount + '</b><span>명이 커피챗을 신청했어요</span></div>' +
+        '<p class="avg">신청 내용은 발표 화면에 나오지 않아요. 결과 페이지에서 따로 확인해요.</p></div>';
       return;
     }
     var body = '';
@@ -194,9 +204,19 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
     }, 30);
   }
 
+  var coffeeCount = 0;
   function poll(){
     var s = step();
     if(s.kind === 'screen'){ answers = []; lastSig = ''; renderView(); return; }
+    if(s.kind === 'coffee'){
+      sb.rpc('host_coffee_count', { p_key: KEY }).then(function(r){
+        if(r.error || s !== step()) return;
+        var sig = 'coffee:' + r.data;
+        if(sig === lastSig) return;
+        lastSig = sig; coffeeCount = r.data; answers = new Array(Number(r.data)); renderView();
+      });
+      return;
+    }
     sb.rpc('host_answers', { p_key: KEY, p_q: s.id }).then(function(r){
       if(r.error || s !== step()) return;
       var sig = s.id + ':' + r.data.length + ':' + (r.data.length ? r.data[r.data.length - 1].id : 0);

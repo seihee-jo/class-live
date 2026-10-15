@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>설문 결과</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="common.css">
+<style>
+body{background:var(--subtle)}
+.wrap{max-width:920px;margin:0 auto;padding:32px 16px 64px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+header h1{font-size:26px;font-weight:600;letter-spacing:-.03em;color:var(--navy)}
+header p{margin-top:6px;font-size:14px;color:var(--muted)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font-size:14px;font-weight:600;color:var(--navy);padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.sec{margin-top:20px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px 22px 18px}
+.sec .k{font-size:13px;font-weight:650;letter-spacing:.06em;color:var(--accent)}
+.sec h2{margin-top:6px;font-size:18px;font-weight:600;color:var(--navy);letter-spacing:-.02em}
+.sec .n{margin-top:4px;font-size:13px;color:var(--muted)}
+.rows{margin-top:14px;display:grid;gap:8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 140px 64px;gap:12px;align-items:center;font-size:14px;color:var(--text-2)}
+.row .t{height:10px;background:var(--subtle);border-radius:9px;overflow:hidden}
+.row .f{display:block;height:100%;background:var(--container)}
+.row b{text-align:right;color:var(--navy);font-weight:600;font-variant-numeric:tabular-nums}
+.list{margin-top:14px;display:grid;gap:8px;list-style:none;padding:0}
+.list li{padding:10px 12px;background:var(--wash);border-radius:8px;font-size:14px;line-height:1.5;color:var(--navy);white-space:pre-line}
+.list li time{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
+table{margin-top:14px;width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:10px 8px;border-top:1px solid var(--line)}
+th{font-size:12px;font-weight:650;color:var(--muted);letter-spacing:.04em}
+td{color:var(--navy);line-height:1.5;white-space:pre-line}
+.tbl{overflow-x:auto}
+.private{margin-top:8px;font-size:13px;color:#B4442F}
+.empty{margin-top:12px;font-size:14px;color:var(--muted)}
+.gate{padding:80px 16px;text-align:center;color:var(--muted)}
+@media (max-width:600px){ .row{grid-template-columns:minmax(0,1fr) 70px 48px} }
+</style>
+</head>
+<body>
+<div class="wrap" id="root"></div>
+<script src="questions.js"></script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+(function(){
+  var KEY = new URLSearchParams(location.hash.slice(1)).get('k');
+  var root = document.getElementById('root');
+  if(!KEY){ root.innerHTML = '<p class="gate">발표자 키가 없는 주소예요.</p>'; return; }
+  var STEPS = window.SURVEY.steps, QS = STEPS.filter(function(s){ return s.kind !== 'screen'; });
+  var sb = window.supabase.createClient(window.LIVE_CONFIG.url, window.LIVE_CONFIG.anonKey);
+  var ANS = [], COFFEE = [];
+
+  function esc(t){ var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
+  function when(t){ var d = new Date(t); return d.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+
+  function bars(opts, counts, base){
+    return '<div class="rows">' + opts.map(function(o){
+      var c = counts[o] || 0, p = base ? Math.round(c / base * 100) : 0;
+      return '<div class="row"><span>' + esc(o) + '</span><span class="t"><span class="f" style="width:' + p + '%"></span></span><b>' + c + ' · ' + p + '%</b></div>';
+    }).join('') + '</div>';
+  }
+
+  function render(){
+    var h = '<header><div><h1>' + esc(window.SURVEY.title) + ' 설문 결과</h1><p>발표자만 보는 페이지예요. 답변 ' + ANS.length + '건 · 커피챗 신청 ' + COFFEE.length + '건</p></div>' +
+      '<div class="btns"><button class="btn" id="dlA" type="button">답변 CSV</button><button class="btn" id="dlC" type="button">커피챗 CSV</button><button class="btn" id="re" type="button">새로고침</button></div></header>';
+    QS.forEach(function(s, i){
+      var rows = ANS.filter(function(a){ return a.q === s.id; });
+      h += '<section class="sec"><p class="k">Q' + (i + 1) + ' · ' + esc(s.label) + '</p><h2>' + esc(s.title) + '</h2>';
+      if(s.kind === 'coffee'){
+        h += '<p class="n">' + COFFEE.length + '명 신청</p><p class="private">연락처가 들어 있어요. 화면 공유나 캡처에 주의해 주세요.</p>';
+        if(!COFFEE.length){ h += '<p class="empty">아직 신청이 없어요.</p>'; }
+        else {
+          h += '<div class="tbl"><table><thead><tr><th>#</th><th>이름</th><th>연락처</th><th>취업 시점</th><th>물어보고 싶은 것</th><th>신청 시각</th></tr></thead><tbody>' +
+            COFFEE.map(function(c, k){ return '<tr><td>' + (k + 1) + '</td><td>' + esc(c.name) + '</td><td>' + esc(c.contact) + '</td><td>' + esc(c.job_status) + '</td><td>' + esc(c.questions) + '</td><td>' + when(c.created_at) + '</td></tr>'; }).join('') +
+            '</tbody></table></div>';
+        }
+        h += '</section>'; return;
+      }
+      h += '<p class="n">' + rows.length + '건</p>';
+      if(!rows.length){ h += '<p class="empty">아직 답변이 없어요.</p></section>'; return; }
+      if(s.kind === 'choice' || s.kind === 'scale' || s.kind === 'multi'){
+        var opts = s.kind === 'scale' ? ['1','2','3','4','5'] : s.options, c = {};
+        rows.forEach(function(a){ (s.kind === 'multi' ? a.body.split('\n') : [a.body]).forEach(function(o){ c[o] = (c[o] || 0) + 1; }); });
+        h += bars(opts, c, rows.length);
+        if(s.kind === 'scale'){
+          var sum = rows.reduce(function(t, a){ return t + (Number(a.body) || 0); }, 0);
+          h += '<p class="n">평균 ' + (sum / rows.length).toFixed(1) + ' / 5</p>';
+        }
+      } else {
+        h += '<ul class="list">' + rows.map(function(a){ return '<li>' + esc(a.body) + '<time>' + when(a.created_at) + '</time></li>'; }).join('') + '</ul>';
+      }
+      h += '</section>';
+    });
+    root.innerHTML = h;
+    document.getElementById('dlA').onclick = function(){
+      var byId = {}; STEPS.forEach(function(s){ byId[s.id] = s; });
+      csv('설문답변.csv', [['질문', '답변', '시각']].concat(ANS.map(function(a){ return [(byId[a.q] || {}).title || a.q, a.body.replace(/\n/g, ' | '), a.created_at]; })));
+    };
+    document.getElementById('dlC').onclick = function(){
+      csv('커피챗신청.csv', [['이름', '연락처', '취업 시점', '물어보고 싶은 것', '시각']].concat(COFFEE.map(function(c){ return [c.name, c.contact, c.job_status, c.questions, c.created_at]; })));
+    };
+    document.getElementById('re').onclick = load;
+  }
+
+  function csv(name, rows){
+    var text = '﻿' + rows.map(function(r){ return r.map(function(v){ return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  function load(){
+    Promise.all([sb.rpc('host_all_answers', { p_key: KEY }), sb.rpc('host_coffee', { p_key: KEY })]).then(function(r){
+      if(r[0].error || r[1].error){ root.innerHTML = '<p class="gate">결과를 불러오지 못했어요. 발표자 키를 확인해 주세요.</p>'; return; }
+      ANS = r[0].data; COFFEE = r[1].data; render();
+    });
+  }
+  load();
+})();
+</script>
+</body>
+</html>
