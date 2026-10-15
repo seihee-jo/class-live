@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>직무 특강 익명 설문</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="common.css">
+<style>
+body{min-height:100dvh;background:var(--wash)}
+.wrap{max-width:520px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;padding:20px 16px calc(24px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--muted);font-weight:500}
+.top .live{display:flex;align-items:center;gap:7px}
+.card{margin-top:18px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:26px 20px 22px;animation:rise .5s var(--ease)}
+.eyebrow{font-size:13px;font-weight:650;letter-spacing:.06em;color:var(--accent)}
+h1{margin-top:8px;font-size:23px;line-height:1.32;font-weight:600;letter-spacing:-.03em;color:var(--navy)}
+.sub{margin-top:10px;font-size:15px;line-height:1.55;color:var(--text-2)}
+.opts{margin-top:20px;display:grid;gap:9px}
+.opt{text-align:left;padding:15px 16px;border:1.5px solid var(--line);border-radius:10px;font-size:16px;font-weight:500;color:var(--navy);background:var(--paper);transition:border-color .15s,background .15s}
+.opt[aria-pressed=true]{border-color:var(--em);background:var(--wash)}
+.scale{margin-top:22px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.scale .opt{text-align:center;padding:16px 0;font-size:18px}
+.scale-l{display:flex;justify-content:space-between;margin-top:9px;font-size:13px;color:var(--muted)}
+textarea{margin-top:18px;width:100%;min-height:120px;resize:vertical;padding:14px;border:1.5px solid var(--line);border-radius:10px;font-size:16px;line-height:1.5;background:var(--paper);outline:none}
+textarea.short{min-height:0;height:56px;resize:none}
+textarea:focus{border-color:var(--em)}
+.count{text-align:right;margin-top:6px;font-size:12px;color:var(--muted)}
+.send{margin-top:16px;width:100%;padding:16px;border-radius:10px;background:var(--navy);color:#fff;font-size:16px;font-weight:600}
+.send:disabled{background:#C9CED6}
+.done{text-align:center;padding:12px 0 4px}
+.done .ok{width:54px;height:54px;margin:0 auto 14px;border-radius:50%;background:var(--lime);display:grid;place-items:center;color:var(--navy)}
+.more{margin-top:14px;font-size:15px;font-weight:600;color:var(--em);text-decoration:underline;text-underline-offset:3px}
+.err{margin-top:12px;font-size:14px;color:#B4442F;min-height:1em}
+.foot{margin-top:auto;padding-top:24px;text-align:center;font-size:12px;color:var(--muted)}
+.wait-dots{display:flex;gap:6px;justify-content:center;margin-top:22px}
+.wait-dots i{width:7px;height:7px;border-radius:50%;background:var(--container);animation:bob 1.2s infinite}
+.wait-dots i:nth-child(2){animation-delay:.15s}.wait-dots i:nth-child(3){animation-delay:.3s}
+@keyframes bob{0%,100%{transform:none;opacity:.5}50%{transform:translateY(-5px);opacity:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span id="ttl"></span><span class="live"><i class="dot-live off" id="dot"></i><span id="liveTxt">연결 중</span></span></div>
+  <div id="stage"></div>
+  <p class="foot">이름이나 연락처는 수집하지 않아요 · 익명 설문</p>
+</div>
+
+<script src="questions.js"></script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+(function(){
+  var STEPS = window.SURVEY.steps, BY = {};
+  STEPS.forEach(function(s){ BY[s.id] = s; });
+  var QS = STEPS.filter(function(s){ return s.kind !== 'screen'; });
+  document.getElementById('ttl').textContent = window.SURVEY.title;
+  var stage = document.getElementById('stage');
+  var cur = null, sending = false;
+
+  function store(k, v){ try{ if(v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); }catch(e){ return null; } }
+  function doneKey(q){ return 'live-done-' + q; }
+  function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
+
+  var sb = window.supabase.createClient(window.LIVE_CONFIG.url, window.LIVE_CONFIG.anonKey);
+
+  function setLive(on){
+    document.getElementById('dot').classList.toggle('off', !on);
+    document.getElementById('liveTxt').textContent = on ? '실시간 연결됨' : '다시 연결 중';
+  }
+
+  function render(q, force){
+    if(q === cur && !force) return;
+    cur = q;
+    var s = BY[q] || BY.wait;
+    stage.innerHTML = '';
+    var card = el('div', 'card');
+    stage.appendChild(card);
+    if(s.kind === 'screen'){
+      card.appendChild(el('p', 'eyebrow', s.label));
+      card.appendChild(el('h1', null, s.title));
+      card.appendChild(el('p', 'sub', s.sub));
+      var d = el('div', 'wait-dots'); d.innerHTML = '<i></i><i></i><i></i>'; card.appendChild(d);
+      return;
+    }
+    var n = QS.indexOf(s) + 1;
+    card.appendChild(el('p', 'eyebrow', 'Q' + n + ' / ' + QS.length));
+    card.appendChild(el('h1', null, s.title));
+    if(store(doneKey(q)) && s.kind !== 'text') return renderDone(card, s);
+
+    var value = null, send = el('button', 'send', '제출하기'), err = el('p', 'err');
+    send.disabled = true;
+
+    if(s.kind === 'choice' || s.kind === 'scale'){
+      var box = el('div', s.kind === 'scale' ? 'scale' : 'opts');
+      var items = s.kind === 'scale' ? ['1','2','3','4','5'] : s.options;
+      items.forEach(function(o){
+        var b = el('button', 'opt', o); b.type = 'button'; b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', function(){
+          box.querySelectorAll('.opt').forEach(function(x){ x.setAttribute('aria-pressed', 'false'); });
+          b.setAttribute('aria-pressed', 'true'); value = o; send.disabled = false;
+        });
+        box.appendChild(b);
+      });
+      card.appendChild(box);
+      if(s.kind === 'scale'){
+        var l = el('div', 'scale-l'); l.appendChild(el('span', null, '1 · ' + s.min)); l.appendChild(el('span', null, s.max + ' · 5'));
+        card.appendChild(l);
+      }
+    } else {
+      var ta = el('textarea', s.kind === 'short' ? 'short' : '');
+      ta.maxLength = s.max; ta.placeholder = s.placeholder || '';
+      var cnt = el('p', 'count', '0 / ' + s.max);
+      ta.addEventListener('input', function(){
+        value = ta.value.trim(); cnt.textContent = ta.value.length + ' / ' + s.max; send.disabled = !value;
+      });
+      card.appendChild(ta); card.appendChild(cnt);
+    }
+    card.appendChild(send); card.appendChild(err);
+
+    send.addEventListener('click', function(){
+      if(!value || sending) return;
+      sending = true; send.disabled = true; send.textContent = '보내는 중'; err.textContent = '';
+      sb.from('answers').insert({ q: q, body: value }).then(function(res){
+        sending = false;
+        if(res.error){
+          send.disabled = false; send.textContent = '제출하기';
+          err.textContent = '제출하지 못했어요. 질문이 넘어갔을 수 있어요. 잠시 후 다시 눌러 주세요.';
+          refresh();
+          return;
+        }
+        store(doneKey(q), '1');
+        card.innerHTML = '';
+        card.appendChild(el('p', 'eyebrow', 'Q' + n + ' / ' + QS.length));
+        card.appendChild(el('h1', null, s.title));
+        renderDone(card, s);
+      });
+    });
+  }
+
+  function renderDone(card, s){
+    var d = el('div', 'done');
+    d.innerHTML = '<div class="ok"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>';
+    d.appendChild(el('p', 'sub', '제출했어요. 앞 화면을 봐 주세요.'));
+    if(s.kind === 'text'){
+      var m = el('button', 'more', '하나 더 남기기'); m.type = 'button';
+      m.addEventListener('click', function(){ render(cur, true); });
+      d.appendChild(m);
+    }
+    card.appendChild(d);
+  }
+
+  function refresh(){
+    return sb.from('live_state').select('q').eq('id', 1).single().then(function(r){
+      if(r.data){ render(r.data.q); }
+    });
+  }
+
+  render('wait');
+  refresh();
+  sb.channel('state')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_state' }, function(p){ render(p.new.q); })
+    .subscribe(function(st){ setLive(st === 'SUBSCRIBED'); if(st === 'SUBSCRIBED') refresh(); });
+
+  // 접속 인원 표시용. 기기마다 임의 값이라 누구인지는 알 수 없다.
+  var me = store('live-anon') || Math.random().toString(36).slice(2, 10);
+  store('live-anon', me);
+  var room = sb.channel('room', { config: { presence: { key: me } } });
+  room.on('presence', { event: 'sync' }, function(){});   // 리스너가 있어야 presence가 켜진다
+  room.subscribe(function(st){ if(st === 'SUBSCRIBED') room.track({ t: Date.now() }); });
+
+  // 실시간 연결이 끊겨도 따라가도록 보조 확인
+  setInterval(refresh, 8000);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) refresh(); });
+})();
+</script>
+</body>
+</html>
