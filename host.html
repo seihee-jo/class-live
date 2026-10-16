@@ -60,11 +60,16 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
 .ask-list{list-style:none;padding:0;margin:0;display:grid;gap:1cqh}
 .ask-item{display:flex;align-items:center;gap:1.4cqw;background:var(--wash);border-radius:.5cqw;padding:1.4cqh 1.4cqw}
 .ask-item p{flex:1;min-width:0;font-size:max(1.5cqw,14px);line-height:1.45;color:var(--navy)}
-.ask-btn{flex:none;background:var(--navy);color:#fff;border-color:var(--navy)}
+.ask-chk{flex:none;display:grid;place-items:center;cursor:pointer}
+.ask-chk input{position:absolute;opacity:0;pointer-events:none}
+.ask-chk span{width:max(2cqw,20px);height:max(2cqw,20px);border:2px solid var(--navy);border-radius:.35cqw;background:#fff;display:grid;place-items:center}
+.ask-chk input:checked + span{background:var(--navy)}
+.ask-chk input:checked + span::after{content:'';width:40%;height:22%;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(5%,-25%)}
+.ask-chk input:focus-visible + span{outline:2px solid var(--em);outline-offset:2px}
+.ask-item time{flex:none;font-size:max(1cqw,11px);color:var(--muted);font-variant-numeric:tabular-nums}
 .ask-k{margin-top:3cqh;margin-bottom:1cqh;font-size:max(1.05cqw,12px);font-weight:650;letter-spacing:.06em;color:var(--muted)}
 .ask-list--done .ask-item{background:var(--subtle);padding:1cqh 1.4cqw}
 .ask-list--done .ask-item p{font-size:max(1.15cqw,13px);color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
-.ask-undo{flex:none;font-size:max(1cqw,11px);color:var(--muted)}
 .empty{color:var(--muted);font-size:max(1.4cqw,14px)}
 /* 안내 화면 */
 .screen{flex:1;display:flex;flex-direction:column;justify-content:center}
@@ -171,12 +176,15 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
       var wait = answers.filter(function(a){ return !a.done; }), done = answers.filter(function(a){ return a.done; });
       document.getElementById('sAns').textContent = wait.length;
       var h = '<div class="res ask">';
+      // 체크하면 아래 '답변 로그'로 내려가고, 답한 시각이 함께 남는다. 체크를 풀면 다시 위로.
+      function hm(t){ var d = new Date(t); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
       h += wait.length ? '<ol class="ask-list">' + wait.map(function(a){
-          return '<li class="ask-item"><p>' + esc(a.body) + '</p><button class="btn ask-btn" type="button" data-mark="' + a.id + '" data-done="1">답변 완료</button></li>';
+          return '<li class="ask-item"><label class="ask-chk"><input type="checkbox" data-mark="' + a.id + '" data-done="1" aria-label="답변 완료로 표시"><span></span></label><p>' + esc(a.body) + '</p><time>' + hm(a.created_at) + '</time></li>';
         }).join('') + '</ol>' : '<p class="empty">' + (done.length ? '대기 중인 질문이 없어요.' : '질문을 기다리는 중이에요.') + '</p>';
       if(done.length){
-        h += '<p class="ask-k">답변 완료 ' + done.length + '</p><ol class="ask-list ask-list--done">' + done.slice().reverse().map(function(a){
-          return '<li class="ask-item"><p>' + esc(a.body) + '</p><button class="btn ask-undo" type="button" data-mark="' + a.id + '" data-done="0">되돌리기</button></li>';
+        done.sort(function(a, b){ return String(b.done_at || '').localeCompare(String(a.done_at || '')); });
+        h += '<p class="ask-k">답변 로그 ' + done.length + '</p><ol class="ask-list ask-list--done">' + done.map(function(a){
+          return '<li class="ask-item"><label class="ask-chk"><input type="checkbox" checked data-mark="' + a.id + '" data-done="0" aria-label="답변 완료 해제"><span></span></label><p>' + esc(a.body) + '</p><time>' + (a.done_at ? hm(a.done_at) + ' 답변' : '') + '</time></li>';
         }).join('') + '</ol>';
       }
       view.innerHTML = renderHead(s) + h + '</div>';
@@ -277,7 +285,7 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
     var b = e.target.closest('[data-mark]');
     if(!b) return;
     var id = Number(b.dataset.mark), d = b.dataset.done === '1';
-    answers.forEach(function(a){ if(a.id === id) a.done = d; });
+    answers.forEach(function(a){ if(a.id === id){ a.done = d; a.done_at = d ? new Date().toISOString() : null; } });
     lastSig = ''; renderView();
     sb.rpc('host_mark', { p_key: KEY, p_id: id, p_done: d }).then(function(r){ if(r.error){ answers.forEach(function(a){ if(a.id === id) a.done = !d; }); renderView(); } });
   });
