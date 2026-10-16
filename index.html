@@ -63,7 +63,8 @@ textarea:focus{border-color:var(--em)}
 (function(){
   var STEPS = window.SURVEY.steps, BY = {};
   STEPS.forEach(function(s){ BY[s.id] = s; });
-  var QS = STEPS.filter(function(s){ return s.kind !== 'screen'; });
+  var QS = STEPS.filter(function(s){ return s.kind !== 'screen' && s.kind !== 'ask'; });
+  function tag(s){ return s.kind === 'ask' ? s.label : 'Q' + (QS.indexOf(s) + 1) + ' / ' + QS.length; }
   document.getElementById('ttl').textContent = window.SURVEY.title;
   var stage = document.getElementById('stage');
   var cur = null, sending = false;
@@ -94,11 +95,10 @@ textarea:focus{border-color:var(--em)}
       if(s.id !== 'end'){ var d = el('div', 'wait-dots'); d.innerHTML = '<i></i><i></i><i></i>'; card.appendChild(d); }
       return;
     }
-    var n = QS.indexOf(s) + 1;
-    card.appendChild(el('p', 'eyebrow', 'Q' + n + ' / ' + QS.length));
+    card.appendChild(el('p', 'eyebrow', tag(s)));
     card.appendChild(el('h1', null, s.title));
     if(s.hint) card.appendChild(el('p', 'sub', s.hint));
-    if(store(doneKey(q)) && s.kind !== 'text') return renderDone(card, s);
+    if(store(doneKey(q)) && s.kind !== 'text' && s.kind !== 'ask') return renderDone(card, s);
     if(s.kind === 'coffee') return renderCoffee(card, s);
 
     var value = null, send = el('button', 'send', '제출하기'), err = el('p', 'err');
@@ -160,7 +160,7 @@ textarea:focus{border-color:var(--em)}
         }
         store(doneKey(q), '1');
         card.innerHTML = '';
-        card.appendChild(el('p', 'eyebrow', 'Q' + n + ' / ' + QS.length));
+        card.appendChild(el('p', 'eyebrow', tag(s)));
         card.appendChild(el('h1', null, s.title));
         if(s.hint) card.appendChild(el('p', 'sub', s.hint));
         renderDone(card, s);
@@ -171,9 +171,9 @@ textarea:focus{border-color:var(--em)}
   function renderDone(card, s){
     var d = el('div', 'done');
     d.innerHTML = '<div class="ok"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>';
-    d.appendChild(el('p', 'sub', s.kind === 'coffee' ? '신청됐어요. 따로 연락드릴게요 :)' : '제출했어요. 앞 화면을 봐 주세요.'));
-    if(s.kind === 'text'){
-      var m = el('button', 'more', '하나 더 남기기'); m.type = 'button';
+    d.appendChild(el('p', 'sub', s.kind === 'coffee' ? '신청됐어요. 따로 연락드릴게요 :)' : s.kind === 'ask' ? '질문이 전달됐어요. 세션 중에 답해 드릴게요.' : '제출했어요. 앞 화면을 봐 주세요.'));
+    if(s.kind === 'text' || s.kind === 'ask'){
+      var m = el('button', 'more', s.kind === 'ask' ? '질문 하나 더 남기기' : '하나 더 남기기'); m.type = 'button';
       m.addEventListener('click', function(){ render(cur, true); });
       d.appendChild(m);
     }

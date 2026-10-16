@@ -127,3 +127,7 @@ drop policy if exists "answer current question" on public.answers;
 create policy "answer current question" on public.answers for insert to anon, authenticated
   with check (q = (select s.q from public.live_state s where s.id = 1)
               and q not in ('wait', 'pause', 'end', 'coffee'));
+
+-- ───────── 2026-10-16 추가: 세션 중 실시간 질문(ask) '답변 완료' 표시 ─────────
+alter table public.answers add column if not exists done boolean not null default false;
+-- host_answers / host_all_answers 는 done 을 함께 돌려준다. host_mark(p_key, p_id, p_done)로 표시를 바꾼다.

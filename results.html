@@ -89,7 +89,7 @@ td{color:var(--navy);line-height:1.5;white-space:pre-line}
           h += '<p class="n">평균 ' + (sum / rows.length).toFixed(1) + ' / 5</p>';
         }
       } else {
-        h += '<ul class="list">' + rows.map(function(a){ return '<li>' + esc(a.body) + '<time>' + when(a.created_at) + '</time></li>'; }).join('') + '</ul>';
+        h += '<ul class="list">' + rows.map(function(a){ return '<li>' + esc(a.body) + '<time>' + when(a.created_at) + (s.kind === 'ask' ? (a.done ? ' · 답변 완료' : ' · 답변 대기') : '') + '</time></li>'; }).join('') + '</ul>';
       }
       h += '</section>';
     });

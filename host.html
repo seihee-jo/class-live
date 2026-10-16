@@ -56,6 +56,15 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
 .note:nth-child(4n+2){background:var(--lime-soft)}
 .note:nth-child(4n+3){background:var(--on)}
 .note:nth-child(4n){background:var(--subtle)}
+/* 실시간 질문 */
+.ask-list{list-style:none;padding:0;margin:0;display:grid;gap:1cqh}
+.ask-item{display:flex;align-items:center;gap:1.4cqw;background:var(--wash);border-radius:.5cqw;padding:1.4cqh 1.4cqw}
+.ask-item p{flex:1;min-width:0;font-size:max(1.5cqw,14px);line-height:1.45;color:var(--navy)}
+.ask-btn{flex:none;background:var(--navy);color:#fff;border-color:var(--navy)}
+.ask-k{margin-top:3cqh;margin-bottom:1cqh;font-size:max(1.05cqw,12px);font-weight:650;letter-spacing:.06em;color:var(--muted)}
+.ask-list--done .ask-item{background:var(--subtle);padding:1cqh 1.4cqw}
+.ask-list--done .ask-item p{font-size:max(1.15cqw,13px);color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.ask-undo{flex:none;font-size:max(1cqw,11px);color:var(--muted)}
 .empty{color:var(--muted);font-size:max(1.4cqw,14px)}
 /* 안내 화면 */
 .screen{flex:1;display:flex;flex-direction:column;justify-content:center}
@@ -93,7 +102,7 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
   if(EMBED) document.documentElement.classList.add('embed');
   if(!KEY){ root.innerHTML = '<div class="gate">발표자 키가 없는 주소예요. 발표자용 링크로 열어 주세요.</div>'; return; }
 
-  var STEPS = window.SURVEY.steps, QS = STEPS.filter(function(s){ return s.kind !== 'screen'; });
+  var STEPS = window.SURVEY.steps, QS = STEPS.filter(function(s){ return s.kind !== 'screen' && s.kind !== 'ask'; });
   var STUDENT_URL = new URL('./', location.href).href;
   var sb = window.supabase.createClient(window.LIVE_CONFIG.url, window.LIVE_CONFIG.anonKey);
   var idx = 0, answers = [], online = 0, live = false, pollT = null, lastSig = '';
@@ -138,7 +147,8 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
 
   function renderHead(s){
     var n = QS.indexOf(s) + 1;
-    return '<p class="eyebrow">Q' + n + ' / ' + QS.length + ' · ' + esc(s.label) + '</p><h1>' + esc(s.title) + '</h1>' +
+    var tag = s.kind === 'ask' ? 'LIVE · ' + esc(s.label) : 'Q' + n + ' / ' + QS.length + ' · ' + esc(s.label);
+    return '<p class="eyebrow">' + tag + '</p><h1>' + esc(s.title) + '</h1>' +
            (s.hint ? '<p class="hint">' + esc(s.hint) + '</p>' : '');
   }
 
@@ -154,6 +164,22 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
       // 연락처가 들어간 신청서는 발표 화면에 절대 띄우지 않는다. 개수만.
       view.innerHTML = renderHead(s) + '<div class="res"><div class="coffee"><b>' + coffeeCount + '</b><span>명이 커피챗을 신청했어요</span></div>' +
         '<p class="avg">신청 내용은 발표 화면에 나오지 않아요. 결과 페이지에서 따로 확인해요.</p></div>';
+      return;
+    }
+    if(s.kind === 'ask'){
+      // 실시간 질문: 대기 질문은 들어온 순서대로 위에, '답변 완료'를 누른 질문은 아래로 쌓는다
+      var wait = answers.filter(function(a){ return !a.done; }), done = answers.filter(function(a){ return a.done; });
+      document.getElementById('sAns').textContent = wait.length;
+      var h = '<div class="res ask">';
+      h += wait.length ? '<ol class="ask-list">' + wait.map(function(a){
+          return '<li class="ask-item"><p>' + esc(a.body) + '</p><button class="btn ask-btn" type="button" data-mark="' + a.id + '" data-done="1">답변 완료</button></li>';
+        }).join('') + '</ol>' : '<p class="empty">' + (done.length ? '대기 중인 질문이 없어요.' : '질문을 기다리는 중이에요.') + '</p>';
+      if(done.length){
+        h += '<p class="ask-k">답변 완료 ' + done.length + '</p><ol class="ask-list ask-list--done">' + done.slice().reverse().map(function(a){
+          return '<li class="ask-item"><p>' + esc(a.body) + '</p><button class="btn ask-undo" type="button" data-mark="' + a.id + '" data-done="0">되돌리기</button></li>';
+        }).join('') + '</ol>';
+      }
+      view.innerHTML = renderHead(s) + h + '</div>';
       return;
     }
     var body = '';
@@ -219,7 +245,7 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
     }
     sb.rpc('host_answers', { p_key: KEY, p_q: s.id }).then(function(r){
       if(r.error || s !== step()) return;
-      var sig = s.id + ':' + r.data.length + ':' + (r.data.length ? r.data[r.data.length - 1].id : 0);
+      var sig = s.id + ':' + r.data.length + ':' + (r.data.length ? r.data[r.data.length - 1].id : 0) + ':' + r.data.filter(function(a){ return a.done; }).map(function(a){ return a.id; }).join(',');
       if(sig === lastSig) return;          // 바뀐 게 없으면 다시 그리지 않는다 (애니메이션 반복 방지)
       lastSig = sig; answers = r.data; renderView();
     });
@@ -247,6 +273,14 @@ h1{margin-top:1.4cqh;font-size:max(3cqw,24px);line-height:1.25;font-weight:600;l
     });
   }
 
+  view.addEventListener('click', function(e){
+    var b = e.target.closest('[data-mark]');
+    if(!b) return;
+    var id = Number(b.dataset.mark), d = b.dataset.done === '1';
+    answers.forEach(function(a){ if(a.id === id) a.done = d; });
+    lastSig = ''; renderView();
+    sb.rpc('host_mark', { p_key: KEY, p_id: id, p_done: d }).then(function(r){ if(r.error){ answers.forEach(function(a){ if(a.id === id) a.done = !d; }); renderView(); } });
+  });
   document.getElementById('bPrev').addEventListener('click', function(){ goTo(idx - 1); });
   document.getElementById('bNext').addEventListener('click', function(){ goTo(idx + 1); });
   if(ALLOW_RESET){
